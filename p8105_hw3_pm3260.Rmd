@@ -8,3 +8,34 @@ output: github_document
 ```{r setup, include=FALSE}
 library(tidyverse)
 ```
+
+# Question 1
+
+```{r}
+library(p8105.datasets)
+data("ny_noaa")
+```
+### Description of data set
+
+
+### Data cleaning
+
+```{r}
+
+```
+
+
+# Question 2
+
+```{r activity}
+# Loading, tidying, merging, and organizing the data sets:
+
+```
+
+
+# Question 3
+
+```{r nyc_bikes}
+# Importing, cleaning, and organizing the data sets:
+
+```
