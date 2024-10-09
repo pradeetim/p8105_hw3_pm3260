@@ -30,12 +30,43 @@ data("ny_noaa")
 ```{r activity}
 # Loading, tidying, merging, and organizing the data sets:
 
+accel_df = 
+  read.csv("./data/nhanes_accel.csv") |>
+  janitor::clean_names() |>
+  drop_na()
+
+covar_df = 
+  read.csv("./data/nhanes_covar.csv", skip=4) |>
+  janitor::clean_names() |>
+  filter(age >= 21) |>
+  drop_na() |>
+  mutate(
+    sex = case_match(
+      sex, 
+      1 ~ "male",
+      2 ~ "female"),
+    education = case_match(
+      education, 
+      1 ~ "Less than high school",
+      2 ~ "High school equivalent",
+      3 ~ "More than high school"
+    ))
+
+activity_df = 
+  left_join(
+    covar_df, accel_df, by = c("seqn"))
+```
+
+#### Creating table for sex x education level
+
+```{r}
+
 ```
 
 
 # Question 3
 
 ```{r nyc_bikes}
-# Importing, cleaning, and organizing the data sets:
+# Importing, cleaning, and organizing the data sets
 
 ```
