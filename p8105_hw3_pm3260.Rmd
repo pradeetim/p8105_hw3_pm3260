@@ -7,6 +7,8 @@ output: github_document
 
 ```{r setup, include=FALSE}
 library(tidyverse)
+library(dplyr)
+library(ggridges)
 ```
 
 # Question 1
@@ -39,7 +41,7 @@ covar_df =
   read.csv("./data/nhanes_covar.csv", skip=4) |>
   janitor::clean_names() |>
   filter(age >= 21) |>
-  drop_na() |>
+  drop_na(sex, age) |>
   mutate(
     sex = case_match(
       sex, 
@@ -60,9 +62,54 @@ activity_df =
 #### Creating table for sex x education level
 
 ```{r}
+table_sxed = 
+  activity_df |>
+   mutate(
+     education = 
+       factor(education, 
+              levels = c("Less than high school", "High school equivalent", "More than high school")))|>
+  count(education, sex) |>
+  pivot_wider(
+    names_from = sex,
+    values_from = n,
+    values_fill = 0
+  ) |>
+  knitr::kable()
 
+table_sxed
 ```
 
+It looks like women and men more or less have similar education levels, aside from the 'high school equivalent' row. Here, there are fewer women than men. Additionally, while men # increases as education level advances, there are more women in this sample with less than hs education than those with hs equivalent education.
+
+#### Creating a visualization of the age distributions for men and women in each education category
+
+```{r}
+activity_plot = activity_df |>
+   mutate(
+     education = 
+       factor(education, 
+              levels = c("Less than high school", "High school equivalent", "More than high school")))
+
+ggplot(
+  activity_plot, 
+  aes(x = education, y = age, color = sex)) +
+  geom_boxplot() + 
+  labs(
+     title = "Age Distributions by Education Level and Gender",
+    x = "Education Level",
+    y = "Age"
+  ) +
+  theme_minimal()
+  
+```
+
+Women: Median age for those with less than hs or hs equivalent education seems to be similar, while those with more than hs education seems to be much younger (smaller median age). 
+
+Men: For men, the median age decreases as the education level increases.
+
+Comparison: For less than hs and hs equivalent education levels, men have a smaller median age than women in those categories.
+For the hs equivalent ed lvl, the spread of mens ages also seems to be much lower than the womens ages.
+However, in the more than hs ed level, men have a slightly higher median age. 
 
 # Question 3
 
