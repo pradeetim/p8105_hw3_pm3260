@@ -111,6 +111,15 @@ Comparison: For less than hs and hs equivalent education levels, men have a smal
 For the hs equivalent ed lvl, the spread of mens ages also seems to be much lower than the womens ages.
 However, in the more than hs ed level, men have a slightly higher median age. 
 
+#### Total activity exploration
+
+```{r}
+activity_df |>
+  
+```
+
+
+
 # Question 3
 
 ```{r nyc_bikes}
