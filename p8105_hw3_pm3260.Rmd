@@ -33,15 +33,20 @@ data("ny_noaa")
 # Loading, tidying, merging, and organizing the data sets:
 
 accel_df = 
-  read.csv("./data/nhanes_accel.csv") |>
+  read_csv("./data/nhanes_accel.csv") |>
   janitor::clean_names() |>
-  drop_na()
+  pivot_longer(
+    min1:min1440,
+    names_to = "min",
+    values_to = "mim") |>
+  mutate(min = str_remove(min, "min"), 
+         min = as.numeric(min))
 
 covar_df = 
-  read.csv("./data/nhanes_covar.csv", skip=4) |>
+  read_csv("./data/nhanes_covar.csv", skip=4) |>
   janitor::clean_names() |>
   filter(age >= 21) |>
-  drop_na(sex, age) |>
+  drop_na(sex, age, education, bmi) |>
   mutate(
     sex = case_match(
       sex, 
@@ -68,6 +73,7 @@ table_sxed =
      education = 
        factor(education, 
               levels = c("Less than high school", "High school equivalent", "More than high school")))|>
+  distinct(seqn, education, sex) |>
   count(education, sex) |>
   pivot_wider(
     names_from = sex,
@@ -85,6 +91,7 @@ It looks like women and men more or less have similar education levels, aside fr
 
 ```{r}
 activity_plot = activity_df |>
+  distinct(seqn, education, sex, age) |>
    mutate(
      education = 
        factor(education, 
@@ -114,15 +121,139 @@ However, in the more than hs ed level, men have a slightly higher median age.
 #### Total activity exploration
 
 ```{r}
-activity_df |>
-  
+activity_total = activity_df |>
+  group_by(seqn) |>
+  mutate(total_mim = sum(mim, na.rm = TRUE),
+         education = 
+        factor(education, 
+              levels = c("Less than high school", "High school equivalent", "More than high school"))) |>
+  distinct(seqn, education, total_mim, age, sex)
+
+  ggplot(
+    activity_total, 
+    aes(x = age, y = total_mim, color = sex)) +
+  geom_point(alpha = .5) +
+  geom_smooth(se = FALSE) +
+  facet_grid(. ~education) +
+  labs(
+    title = "Total Activity by Age",
+    x = "Age (years)",
+    y = "Total Activity (mim)"
+  )
+
 ```
 
+In all the three plots, as age increases, the total activity time (mim) decreases. However, it looks like for those with less than hs education, the decreasing trend is very steep compared to those with a more than hs education. The trend seems to weaken as education increases.Both men and women total activity time decreases but women on avg have higher activity time than men (except in the second half of the plot for less than hs education).
+
+```{r}
+activity_hr = activity_df |>
+  mutate(hour = ceiling(min / 60)) |>
+  group_by(seqn, hour) |>
+  mutate(hr_mim = sum(mim, na.rm = TRUE), 
+         education = 
+        factor(education, 
+              levels = c("Less than high school", "High school equivalent", "More than high school"))) |>
+  distinct(seqn, education, hr_mim, hour, sex)
+
+ggplot(activity_hr, aes(x = hour, y = hr_mim, color = sex)) +
+  geom_point(alpha = .1) +
+  geom_smooth(se = FALSE) +
+  facet_grid(. ~education) +
+  labs(
+    title = "24-hour activity time course by education and sex",
+    x = "Time (hr)",
+    y = "Activity (mim)"
+  )
+```
+
+Looking at the graph we can see a clear 'cyclical' patter in all the different education levels; the activity level is very low/decreasing from Hr0-5 and Hr21-24 which makes sense since this correlates to around 9pm-5am ish which is when most adults are asleep. Men and women seem to have similar patterns of activity over the different education levels (women have slightly increased activity level than men). One difference between the three education level is the "peaking" of activity. For those less than hs, the activity peaks around 12-13hr and then starts decreasing while hs equivalent and more than hs education, they peak around 10 but then plateau for a while until 20/19hr. 
 
 
 # Question 3
 
 ```{r nyc_bikes}
 # Importing, cleaning, and organizing the data sets
+jan20_df = 
+  read_csv("./data/Jan 2020 Citi.csv") |>
+  janitor::clean_names() |>
+  drop_na() |>
+  mutate( month = "January",
+          year = "2020")
 
+jan24_df = 
+  read_csv("./data/Jan 2024 Citi.csv") |>
+  janitor::clean_names() |>
+  drop_na() |>
+  mutate( month = "January",
+          year = "2024")
+
+jul20_df = 
+  read_csv("./data/July 2020 Citi.csv") |>
+  janitor::clean_names() |>
+  drop_na() |>
+  mutate( month = "July",
+          year = "2020")
+
+jul24_df = 
+  read_csv("./data/July 2024 Citi.csv") |>
+  janitor::clean_names() |>
+  drop_na() |>
+  mutate( month = "July",
+          year = "2024")
+
+citi_df = 
+  bind_rows(jan20_df, jan24_df, jul20_df, jul24_df)
 ```
+
+The final data set`citi_df` has `r nrow(citi_df)` observations and `r ncol(citi_df)` variables (`r paste(names(citi_df), collapse = ", ")`). Month and year were new variables created to keep track of the data set the observations came from. 
+
+
+#### Creating a table:
+
+```{r}
+citi_table <- citi_df |>
+  group_by(year, month, member_casual) |>
+  summarize(total_rides = n(), .groups = 'drop') |>
+  arrange(year, month) |>
+  pivot_wider(
+    names_from = member_casual,
+    values_from = total_rides,
+    values_fill = 0
+  ) |>
+  knitr::kable(
+    caption = "Total Number of Rides by Year, Month, and Rider Type (Casual/Member)",
+    col.names = c("Year", "Month",  "Casual Riders", "Member Riders"),
+    align = 'c'
+  )
+
+citi_table
+```
+
+Through out the years and months, it looks like the member riders are increasing. Additionally, casual riders also increased, but there was a decrease between jul 2020 and jan 2024. Additionally, the member riders from jan2024 to july 2024 increased by almost 20k. I'm wondering if there are less casual riders around Jan 2020 due to COVID.
+
+#### Table with 5 most populat starting stations on July 2024
+
+```{r}
+top_stations = citi_df |>
+  filter(year == 2024, month == "July") |>
+  group_by(start_station_name) |>
+  summarize(total_rides = n(), .groups = 'drop') |>
+  arrange(desc(total_rides)) |>
+  slice_max(total_rides, n = 5) |>
+  knitr::kable(
+    caption = "Top 5 Most Popular Starting Stations for July 2024",
+    col.names = c("Starting Station", "Number of Rides"),
+    align = 'c'
+  )
+
+top_stations
+```
+
+
+
+
+
+
+
+
+
