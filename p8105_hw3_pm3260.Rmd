@@ -29,7 +29,7 @@ data("ny_noaa")
 
 # Question 2
 
-```{r activity}
+```{r act, message=FALSE, warning=FALSE}
 # Loading, tidying, merging, and organizing the data sets:
 
 accel_df = 
@@ -66,7 +66,7 @@ activity_df =
 
 #### Creating table for sex x education level
 
-```{r}
+```{r, table}
 table_sxed = 
   activity_df |>
    mutate(
@@ -120,7 +120,7 @@ However, in the more than hs ed level, men have a slightly higher median age.
 
 #### Total activity exploration
 
-```{r}
+```{r activity, message=FALSE, warning=FALSE}
 activity_total = activity_df |>
   group_by(seqn) |>
   mutate(total_mim = sum(mim, na.rm = TRUE),
@@ -145,7 +145,7 @@ activity_total = activity_df |>
 
 In all the three plots, as age increases, the total activity time (mim) decreases. However, it looks like for those with less than hs education, the decreasing trend is very steep compared to those with a more than hs education. The trend seems to weaken as education increases.Both men and women total activity time decreases but women on avg have higher activity time than men (except in the second half of the plot for less than hs education).
 
-```{r}
+```{r acthr, message=FALSE, warning=FALSE}
 activity_hr = activity_df |>
   mutate(hour = ceiling(min / 60)) |>
   group_by(seqn, hour) |>
@@ -171,7 +171,7 @@ Looking at the graph we can see a clear 'cyclical' patter in all the different e
 
 # Question 3
 
-```{r nyc_bikes}
+```{r nyc_bikes, message=FALSE, warning=FALSE}
 # Importing, cleaning, and organizing the data sets
 jan20_df = 
   read_csv("./data/Jan 2020 Citi.csv") |>
@@ -231,7 +231,7 @@ citi_table
 
 Through out the years and months, it looks like the member riders are increasing. Additionally, casual riders also increased, but there was a decrease between jul 2020 and jan 2024. Additionally, the member riders from jan2024 to july 2024 increased by almost 20k. I'm wondering if there are less casual riders around Jan 2020 due to COVID.
 
-#### Table with 5 most populat starting stations on July 2024
+#### Table with 5 most popular starting stations on July 2024
 
 ```{r}
 top_stations = citi_df |>
@@ -267,17 +267,36 @@ ggplot(citi_grid, aes(x = weekdays, y = median_duration, group = interaction(yea
     title = "Median Ride Duration by Day of the Week, Month, and Year",
     x = "Day of the Week",
     y = "Median Ride Duration (minutes)",
-    color = "Year and Month"
-  ) +
-    theme(axis.text.x = element_text(angle = 45, hjust = 1))
+    color = "Year and Month") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
 ```
 
 In both January and July, weekends tend to show slightly higher median ride durations compared to weekdays, which may indicate that riders use the bikes more for leisure activities during the weekend (except in jan 2024). In January, the median ride durations are relatively lower across all days of the week compared to July (prob due to colder weather). However, in 2024, the median ride duration is lower across the board compared to 2020. 
 
 #### Plot 2: Month, membership status, and bike type on the distribution of ride duration
-```{r}
+```{r citiplot, warning = FALSE, message = FALSE}
+citi_plot = citi_df |>
+  filter(year == 2024) |>
+  select(month, member_casual, rideable_type, duration, ride_id) 
+ 
+ggplot(citi_plot, 
+       aes(x = duration, 
+           y = member_casual, 
+           fill = member_casual)) +
+  geom_density_ridges(alpha = 0.5, scale = 1) +
+  facet_grid(rideable_type ~ month) +
+  viridis::scale_fill_viridis(discrete = TRUE) +
+  labs(
+    title = "Impact of Month, Membership Status, and Bike Type on Ride Duration",
+    x = "Ride Duration (minutes)",
+    y = "Membership Status",
+    fill = "Membership Status"
+  )
 
 ```
+
+Member riders seem to all have similar distribution despite the type of bike or month, with short 10-20 min rides being the most common. Casual riders show a wider range of ride times.Ride durations seem to be longer in July than in January with a lightly wider distribution. For casual riders, when using electric bikes, their duration seems more concentrated to a shorter ride while classic bike tends to be more varied.
 
 
 
