@@ -9,23 +9,72 @@ output: github_document
 library(tidyverse)
 library(dplyr)
 library(ggridges)
+library(p8105.datasets)
 ```
 
 # Question 1
 
-```{r}
-library(p8105.datasets)
+```{r mynoaa}
 data("ny_noaa")
 ```
-### Description of data set
+#### Description of data set
 
+On first look, there are a LOT of missing data. This data set contains `r nrow(ny_noaa)` rows and `r ncol(ny_noaa)` variables (`r paste(names(ny_noaa), collapse = ", ")`).  The avg prcp number is `r mean(pull(ny_noaa, prcp), na.rm = TRUE)` and the avg snow is `r mean(pull(ny_noaa, snwd), na.rm = TRUE)`.
 
-### Data cleaning
+#### Data cleaning
 
-```{r}
+```{r noaaclean, message= FALSE, warning= FALSE}
+ny_noaa = 
+  ny_noaa |>
+  separate(date, into = c("year", "month", "day"), convert = TRUE) |> 
+  mutate(
+    tmax = as.numeric(tmax),
+    tmin = as.numeric(tmin))
 
+ny_noaa |>
+count(snow) |>
+arrange(desc(n))
 ```
 
+The most observed value for snow is 0 and NA. This makes sense because it does not snow too much in NY.
+
+```{r meannoaa,  message= FALSE, warning= FALSE}
+ny_noaa |>
+  group_by(id, year, month) |>
+  filter(month %in% c(1, 7)) |>
+  summarize(mean_tmax = mean(tmax, na.rm = TRUE, color = id)) |>
+  
+  ggplot(aes(x = year, y = mean_tmax, group = id)) + geom_point() + geom_path() +
+  facet_grid(~month) +
+  labs(title = "Mean monthly temperature for each station across years for January and July") +
+  theme_minimal() + 
+  theme(legend.position = "bottom")
+```
+
+The temperature on avg is lower in Jan than July. The temperatures stay around a similar range within the two months, aside from a couple colder outliers (1983~ Jan, 1987~ July, 2004~ July). 
+
+```{r noaaplot,  message= FALSE, warning= FALSE}
+# installed patchwork package
+library(patchwork)
+
+hex = 
+  ny_noaa |>
+  ggplot(aes(x = tmin, y = tmax)) + 
+  geom_hex() +
+  theme_minimal() + 
+  theme(legend.position = "bottom")
+
+ridge = 
+  ny_noaa |>
+  filter(snow < 100, snow > 0) |>
+  ggplot(aes(x = snow, y = as.factor(year))) + 
+  geom_density_ridges()
+
+hex + ridge
+```
+
+Most of the data is concentrated in the middle of the hex plot; there are also some data points (in the +,- quadrant) that indicate that some tmax values are less then tmin, which is concerning for the data. 
+With the ridge plots, you can see clear peaks for all the years 0-35 mm, 45 mm, and 80 mm of snow, each smaller than the last. 
 
 # Question 2
 
@@ -72,7 +121,9 @@ table_sxed =
    mutate(
      education = 
        factor(education, 
-              levels = c("Less than high school", "High school equivalent", "More than high school")))|>
+              levels = c("Less than high school", 
+                         "High school equivalent", 
+                         "More than high school")))|>
   distinct(seqn, education, sex) |>
   count(education, sex) |>
   pivot_wider(
@@ -95,7 +146,9 @@ activity_plot = activity_df |>
    mutate(
      education = 
        factor(education, 
-              levels = c("Less than high school", "High school equivalent", "More than high school")))
+              levels = c("Less than high school", 
+                         "High school equivalent", 
+                         "More than high school")))
 
 ggplot(
   activity_plot, 
@@ -104,7 +157,8 @@ ggplot(
   labs(
      title = "Age Distributions by Education Level and Gender",
     x = "Education Level",
-    y = "Age"
+    y = "Age",
+    color = "Sex"
   ) +
   theme_minimal()
   
@@ -138,21 +192,27 @@ activity_total = activity_df |>
   labs(
     title = "Total Activity by Age",
     x = "Age (years)",
-    y = "Total Activity (mim)"
-  )
+    y = "Total Activity (mim)",
+    color = "Sex"
+  ) +
+  theme_minimal()
 
 ```
 
 In all the three plots, as age increases, the total activity time (mim) decreases. However, it looks like for those with less than hs education, the decreasing trend is very steep compared to those with a more than hs education. The trend seems to weaken as education increases.Both men and women total activity time decreases but women on avg have higher activity time than men (except in the second half of the plot for less than hs education).
 
 ```{r acthr, message=FALSE, warning=FALSE}
-activity_hr = activity_df |>
+activity_hr = 
+  activity_df |>
   mutate(hour = ceiling(min / 60)) |>
   group_by(seqn, hour) |>
-  mutate(hr_mim = sum(mim, na.rm = TRUE), 
+  mutate(hr_mim = 
+           sum(mim, na.rm = TRUE), 
          education = 
-        factor(education, 
-              levels = c("Less than high school", "High school equivalent", "More than high school"))) |>
+           factor(education, 
+              levels = c("Less than high school", 
+                         "High school equivalent", 
+                         "More than high school"))) |>
   distinct(seqn, education, hr_mim, hour, sex)
 
 ggplot(activity_hr, aes(x = hour, y = hr_mim, color = sex)) +
@@ -162,8 +222,10 @@ ggplot(activity_hr, aes(x = hour, y = hr_mim, color = sex)) +
   labs(
     title = "24-hour activity time course by education and sex",
     x = "Time (hr)",
-    y = "Activity (mim)"
-  )
+    y = "Activity (mim)",
+    color = "Sex"
+  ) +
+  theme_minimal()
 ```
 
 Looking at the graph we can see a clear 'cyclical' patter in all the different education levels; the activity level is very low/decreasing from Hr0-5 and Hr21-24 which makes sense since this correlates to around 9pm-5am ish which is when most adults are asleep. Men and women seem to have similar patterns of activity over the different education levels (women have slightly increased activity level than men). One difference between the three education level is the "peaking" of activity. For those less than hs, the activity peaks around 12-13hr and then starts decreasing while hs equivalent and more than hs education, they peak around 10 but then plateau for a while until 20/19hr. 
@@ -211,7 +273,8 @@ The final data set`citi_df` has `r nrow(citi_df)` observations and `r ncol(citi_
 #### Creating a table:
 
 ```{r}
-citi_table <- citi_df |>
+citi_table =
+  citi_df |>
   group_by(year, month, member_casual) |>
   summarize(total_rides = n(), .groups = 'drop') |>
   arrange(year, month) |>
@@ -235,9 +298,11 @@ Through out the years and months, it looks like the member riders are increasing
 
 ```{r}
 top_stations = citi_df |>
-  filter(year == 2024, month == "July") |>
+  filter(
+    year == 2024, 
+    month == "July") |>
   group_by(start_station_name) |>
-  summarize(total_rides = n(), .groups = 'drop') |>
+  summarize(total_rides = n()) |>
   arrange(desc(total_rides)) |>
   slice_max(total_rides, n = 5) |>
   knitr::kable(
@@ -254,12 +319,19 @@ top_stations
 ```{r}
 citi_grid = citi_df |>
   group_by(year, month, weekdays) |>
-  mutate(median_duration = median(duration, na.rm = TRUE),
-         weekdays = factor(weekdays,
-         levels = c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")))
+  mutate(
+    median_duration = median(duration, na.rm = TRUE),
+    weekdays = 
+      factor(weekdays,
+             levels = c("Monday", "Tuesday", "Wednesday", 
+                        "Thursday", "Friday", "Saturday", 
+                        "Sunday")))
 
-
-ggplot(citi_grid, aes(x = weekdays, y = median_duration, group = interaction(year, month), color = interaction(year, month))) +
+ggplot(citi_grid, 
+       aes(x = weekdays, 
+           y = median_duration, 
+           group = interaction(year, month), 
+           color = interaction(year, month))) +
   geom_line() +
   geom_point() +
   facet_grid(year ~ month) +
@@ -296,7 +368,7 @@ ggplot(citi_plot,
 
 ```
 
-Member riders seem to all have similar distribution despite the type of bike or month, with short 10-20 min rides being the most common. Casual riders show a wider range of ride times.Ride durations seem to be longer in July than in January with a lightly wider distribution. For casual riders, when using electric bikes, their duration seems more concentrated to a shorter ride while classic bike tends to be more varied.
+Member riders seem to all have similar distribution despite the type of bike or month, with short 10-20 min rides being the most common. Casual riders show a wider range of ride times. Ride duration seem to be longer in July than in January with a lightly wider distribution. For casual riders, when using electric bikes, their duration seems more concentrated to a shorter ride while classic bike tends to be more varied.
 
 
 
